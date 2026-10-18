@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Tracker - Record Amount</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="master-frame">
+        <h2>Record Amount</h2>
+        
+        <div id="alertBox" class="alert" style="display: none;"></div>
+
+        <form id="recordForm" style="display: none;">
+            <div class="form-group">
+                <label for="planSelect">Select Plan:</label>
+                <select id="planSelect" required></select>
+            </div>
+            
+            <div class="form-group">
+                <label for="addAmount">Enter Amount to Add (GHC):</label>
+                <input type="number" id="addAmount" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+
+            <button type="submit">Update Plan</button>
+        </form>
+
+        <div id="noPlansMsg" style="display: none; text-align: center;">
+            <p style="color: #721c24; font-weight: bold;">No plans found. Please create a plan first.</p>
+        </div>
+
+        <div class="nav-links" style="margin-top: 20px;">
+            <a href="dashboard.html">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        const alertBox = document.getElementById("alertBox");
+        const recordForm = document.getElementById("recordForm");
+        const noPlansMsg = document.getElementById("noPlansMsg");
+        const planSelect = document.getElementById("planSelect");
+
+        function showAlert(message, type = "error") {
+            alertBox.textContent = message;
+            alertBox.className = `alert alert-${type}`;
+            alertBox.style.display = "block";
+        }
+
+        const data = loadTrackerData();
+        const plans = data.plans || {};
+        const planNames = Object.keys(plans);
+
+        if (planNames.length === 0) {
+            noPlansMsg.style.display = "block";
+            recordForm.style.display = "none";
+        } else {
+            noPlansMsg.style.display = "none";
+            recordForm.style.display = "block";
+
+            // Dynamically populate dropdown with saved plan names
+            planNames.forEach(name => {
+                const option = document.createElement("option");
+                option.value = name;
+                option.textContent = name;
+                planSelect.appendChild(option);
+            });
+        }
+
+        recordForm.addEventListener("submit", function(e) {
+            e.preventDefault();
+            alertBox.style.display = "none";
+
+            const selectedPlan = planSelect.value;
+            const addAmountStr = document.getElementById("addAmount").value.trim();
+
+            if (!plans[selectedPlan]) {
+                showAlert("Selected plan does not exist.", "error");
+                return;
+            }
+
+            const addAmount = parseFloat(addAmountStr);
+            if (isNaN(addAmount) || addAmount < 0) {
+                showAlert("Invalid number: Amount cannot be negative.", "error");
+                return;
+            }
+
+            const oldAmount = plans[selectedPlan].amount;
+            plans[selectedPlan].amount += addAmount;
+            plans[selectedPlan].last_date = getFormattedDate();
+
+            data.plans = plans;
+
+            if (saveTrackerData(data)) {
+                const newAmount = plans[selectedPlan].amount;
+                showAlert(`Successful! Old Amount: GHC${oldAmount.toFixed(2)}, Added: GHC${addAmount.toFixed(2)}, New Amount: GHC${newAmount.toFixed(2)}`, "success");
+                setTimeout(() => {
+                    window.location.href = "dashboard.html";
+                }, 2500);
+            } else {
+                showAlert("Error: Failed to save data.", "error");
+            }
+        });
+    </script>
+</body>
+</html>

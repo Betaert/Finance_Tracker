@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Tracker - Track Record</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="master-frame">
+        <h2>Track Record</h2>
+        
+        <div id="trackContent" style="display: none;">
+            <div class="form-group">
+                <label for="trackSelect">Select a plan to view details:</label>
+                <select id="trackSelect"></select>
+            </div>
+            <button id="viewBtn">View Details</button>
+
+            <div id="detailsCard" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; display: none;">
+                <p><strong>Name:</strong> <span id="detName"></span></p>
+                <p><strong>Purpose:</strong> <span id="detPurpose"></span></p>
+                <p><strong>Amount:</strong> GHC<span id="detAmount"></span></p>
+                <p><strong>Updated:</strong> <span id="detDate"></span></p>
+            </div>
+        </div>
+
+        <div id="noPlansMsg" style="display: none; text-align: center;">
+            <p style="color: #721c24; font-weight: bold;">No plans found.</p>
+        </div>
+
+        <div class="nav-links" style="margin-top: 20px;">
+            <a href="dashboard.html">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        const trackContent = document.getElementById("trackContent");
+        const noPlansMsg = document.getElementById("noPlansMsg");
+        const trackSelect = document.getElementById("trackSelect");
+        const viewBtn = document.getElementById("viewBtn");
+        const detailsCard = document.getElementById("detailsCard");
+
+        const detName = document.getElementById("detName");
+        const detPurpose = document.getElementById("detPurpose");
+        const detAmount = document.getElementById("detAmount");
+        const detDate = document.getElementById("detDate");
+
+        const data = loadTrackerData();
+        const plans = data.plans || {};
+        const planNames = Object.keys(plans);
+
+        if (planNames.length === 0) {
+            noPlansMsg.style.display = "block";
+            trackContent.style.display = "none";
+        } else {
+            noPlansMsg.style.display = "none";
+            trackContent.style.display = "block";
+
+            // Populate dropdown options
+            planNames.forEach(name => {
+                const option = document.createElement("option");
+                option.value = name;
+                option.textContent = name;
+                trackSelect.appendChild(option);
+            });
+
+            // View button event listener to display plan metadata
+            viewBtn.addEventListener("click", function() {
+                const selectedPlan = trackSelect.value;
+                const pData = plans[selectedPlan];
+
+                if (pData) {
+                    detName.textContent = pData.name;
+                    detPurpose.textContent = pData.purpose;
+                    detAmount.textContent = pData.amount.toFixed(2);
+                    detDate.textContent = pData.last_date;
+                    detailsCard.style.display = "block";
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Tracker - Security</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="master-frame">
+        <h2 id="formTitle">Loading Security...</h2>
+        
+        <div id="alertBox" class="alert" style="display: none;"></div>
+
+        <form id="authForm">
+            <div class="form-group" id="groupField1">
+                <label id="labelField1" for="input1">Password:</label>
+                <input type="password" id="input1" required>
+            </div>
+            
+            <div class="form-group" id="groupField2" style="display: none;">
+                <label for="input2">Confirm Master Password:</label>
+                <input type="password" id="input2">
+            </div>
+
+            <button type="submit" id="submitBtn">Proceed</button>
+        </form>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        const titleEl = document.getElementById("formTitle");
+        const alertBox = document.getElementById("alertBox");
+        const authForm = document.getElementById("authForm");
+        const input1 = document.getElementById("input1");
+        const input2 = document.getElementById("input2");
+        const groupField2 = document.getElementById("groupField2");
+        const labelField1 = document.getElementById("labelField1");
+        const submitBtn = document.getElementById("submitBtn");
+
+        function showAlert(message, type = "error") {
+            alertBox.textContent = message;
+            alertBox.className = `alert alert-${type}`;
+            alertBox.style.display = "block";
+        }
+
+        const isSetup = !hasStoredPassword();
+
+        if (isSetup) {
+            titleEl.textContent = "=== INITIAL SYSTEM SETUP ===";
+            labelField1.textContent = "Create Master Password (min 8 chars):";
+            groupField2.style.display = "block";
+            submitBtn.textContent = "Initialize System";
+        } else {
+            titleEl.textContent = "=== SECURE SYSTEM LOGIN ===";
+            labelField1.textContent = "Enter Master Password:";
+            groupField2.style.display = "none";
+            submitBtn.textContent = "Login";
+        }
+
+        authForm.addEventListener("submit", async function(e) {
+            e.preventDefault();
+            alertBox.style.display = "none";
+
+            const val1 = input1.value;
+            const val2 = input2.value;
+
+            if (isSetup) {
+                if (val1.length < 8) {
+                    showAlert("Password must be at least 8 characters long for safety.", "error");
+                    return;
+                }
+                if (val1 !== val2) {
+                    showAlert("Passwords do not match. Try again.", "error");
+                    return;
+                }
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Generating Hashes...";
+                await initializeMasterPassword(val1);
+                showAlert("System initialized successfully! Redirecting...", "success");
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Verifying...";
+                const isValid = await verifyStoredPassword(val1);
+                if (isValid) {
+                    sessionStorage.setItem("finance_authenticated", "true");
+                    window.location.href = "dashboard.html";
+                } else {
+                    showAlert("Invalid credentials. Access Denied.", "error");
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Login";
+                }
+            }
+        });
+    </script>
+</body>
+</html>

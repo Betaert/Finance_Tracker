@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Tracker - Create Plan</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="master-frame">
+        <h2>Create a New Plan</h2>
+        
+        <div id="alertBox" class="alert" style="display: none;"></div>
+
+        <form id="createPlanForm">
+            <div class="form-group">
+                <label for="planName">Name your plan:</label>
+                <input type="text" id="planName" placeholder="e.g. Vacation Savings" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="purpose">Purpose (max 30 characters):</label>
+                <input type="text" id="purpose" maxlength="30" placeholder="e.g. Summer trip" required>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Initial Amount (GHC):</label>
+                <input type="number" id="amount" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+
+            <button type="submit">Save Plan</button>
+        </form>
+
+        <div class="nav-links" style="margin-top: 20px;">
+            <a href="dashboard.html">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        const form = document.getElementById("createPlanForm");
+        const alertBox = document.getElementById("alertBox");
+
+        function showAlert(message, type = "error") {
+            alertBox.textContent = message;
+            alertBox.className = `alert alert-${type}`;
+            alertBox.style.display = "block";
+        }
+
+        form.addEventListener("submit", function(e) {
+            e.preventDefault();
+            alertBox.style.display = "none";
+
+            const planName = document.getElementById("planName").value.trim();
+            const purpose = document.getElementById("purpose").value.trim();
+            const amountStr = document.getElementById("amount").value.trim();
+
+            // 1. Validate Plan Name
+            if (!planName) {
+                showAlert("Plan name cannot be empty.", "error");
+                return;
+            }
+
+            // 2. Validate Purpose Length (1 to 30 characters)
+            if (purpose.length === 0 || purpose.length > 30) {
+                showAlert("Purpose must be between 1 and 30 characters long.", "error");
+                return;
+            }
+
+            // 3. Validate Amount
+            const amount = parseFloat(amountStr);
+            if (isNaN(amount) || amount < 0) {
+                showAlert("Invalid number: Amount cannot be negative.", "error");
+                return;
+            }
+
+            // 4. Load Data, Add Plan, and Save to LocalStorage
+            const data = loadTrackerData();
+            if (!data.plans) {
+                data.plans = {};
+            }
+
+            data.plans[planName] = {
+                name: planName,
+                purpose: purpose,
+                amount: amount,
+                last_date: getFormattedDate()
+            };
+
+            if (saveTrackerData(data)) {
+                showAlert(`Plan '${planName}' has been saved successfully!`, "success");
+                setTimeout(() => {
+                    window.location.href = "dashboard.html";
+                }, 1500);
+            } else {
+                showAlert("Error: Failed to save data to local storage.", "error");
+            }
+        });
+    </script>
+</body>
+</html>

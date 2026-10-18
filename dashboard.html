@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Tracker - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="master-frame" style="max-width: 500px; text-align: center;">
+        <h2>Finance Tracker</h2>
+        <p style="color: #666; margin-bottom: 25px;">Where you track your savings</p>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            <button onclick="location.href='create_plan.html'" style="background-color: #28a745;">1. Create Plan</button>
+            <button onclick="location.href='record_amount.html'" style="background-color: #007bff;">2. Record Amount</button>
+            <button onclick="location.href='track_record.html'" style="background-color: #e0a800; color: #fff;">3. Track Record</button>
+            <button onclick="location.href='total_amount.html'" style="background-color: #6f42c1;">4. Total Amount Recorded</button>
+            <button onclick="location.href='remove_record.html'" style="background-color: #dc3545;">5. Remove Record</button>
+            <button onclick="logoutSession()" style="background-color: #6c757d;">6. Logout</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        function logoutSession() {
+            sessionStorage.removeItem("finance_authenticated");
+            window.location.href = "index.html";
+        }
+    </script>
+</body>
+</html>

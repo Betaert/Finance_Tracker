@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Tracker - Total Amount</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="master-frame" style="max-width: 550px;">
+        <h2>All Plans Overview</h2>
+        
+        <div id="reportContainer" style="display: none;">
+            <div id="plansList" style="margin-bottom: 20px;"></div>
+
+            <div style="background: #e9ecef; padding: 15px; border-radius: 4px; border: 1px solid #ced4da; text-align: center;">
+                <p style="margin: 0 0 5px 0; font-size: 16px; font-weight: bold; color: #333;">TOTAL AMOUNT ACROSS ALL PLANS:</p>
+                <p style="margin: 0; font-size: 22px; font-weight: bold; color: #007bff;">GHC<span id="grandTotal">0.00</span></p>
+                <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Active plans: <span id="planCount">0</span></p>
+            </div>
+        </div>
+
+        <div id="noPlansMsg" style="display: none; text-align: center;">
+            <p style="color: #721c24; font-weight: bold;">No plans found.</p>
+        </div>
+
+        <div class="nav-links" style="margin-top: 20px;">
+            <a href="dashboard.html">← Back to Dashboard</a>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        const reportContainer = document.getElementById("reportContainer");
+        const noPlansMsg = document.getElementById("noPlansMsg");
+        const plansList = document.getElementById("plansList");
+        const grandTotalEl = document.getElementById("grandTotal");
+        const planCountEl = document.getElementById("planCount");
+
+        const data = loadTrackerData();
+        const plans = data.plans || {};
+        const planNames = Object.keys(plans);
+
+        if (planNames.length === 0) {
+            noPlansMsg.style.display = "block";
+            reportContainer.style.display = "none";
+        } else {
+            noPlansMsg.style.display = "none";
+            reportContainer.style.display = "block";
+
+            let totalAmount = 0;
+            let htmlContent = "";
+
+            planNames.forEach(name => {
+                const pData = plans[name];
+                totalAmount += pData.amount;
+
+                htmlContent += `
+                    <div style="padding: 12px; margin-bottom: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+                        <p style="margin: 0 0 4px 0;"><strong>Plan:</strong> ${pData.name}</p>
+                        <p style="margin: 0 0 4px 0; color: #555;"><strong>Purpose:</strong> ${pData.purpose}</p>
+                        <p style="margin: 0 0 4px 0; color: #28a745;"><strong>Amount:</strong> GHC${pData.amount.toFixed(2)}</p>
+                        <p style="margin: 0; font-size: 12px; color: #888;"><strong>Last Updated:</strong> ${pData.last_date}</p>
+                    </div>
+                `;
+            });
+
+            plansList.innerHTML = htmlContent;
+            grandTotalEl.textContent = totalAmount.toFixed(2);
+            planCountEl.textContent = planNames.length;
+        }
+    </script>
+</body>
+</html>
