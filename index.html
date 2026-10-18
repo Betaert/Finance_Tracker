@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Finance Tracker - Security</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="cute.PNG" type="image/png">
 </head>
 <body>
     <div class="master-frame">
@@ -46,7 +47,7 @@
         const isSetup = !hasStoredPassword();
 
         if (isSetup) {
-            titleEl.textContent = "=== INITIAL SYSTEM SETUP ===";
+            titleEl.textContent = "INITIAL SYSTEM SETUP";
             labelField1.textContent = "Create Master Password (min 8 chars):";
             groupField2.style.display = "block";
             submitBtn.textContent = "Initialize System";
