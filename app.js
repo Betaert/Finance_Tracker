@@ -1,8 +1,14 @@
-// app.js - Complete Cryptographic Security & Local Storage Engine
+// app.js - Cryptographic Security & Google Drive Cloud Sync Engine
 
 const STORAGE_KEY_SALT = "finance_tracker_salt";
 const STORAGE_KEY_HASH = "finance_tracker_hash";
 const STORAGE_KEY_DATA = "finance_tracker_data";
+
+// --- Google Drive Configuration ---
+// Replace with your Google Cloud Console OAuth 2.0 Client ID
+const CLIENT_ID = '473137610415-7rotlpd299stbu5m4js8qppsejukdes2.apps.googleusercontent.com'; 
+const SCOPES = 'https://www.googleapis.com/auth/drive.appfolder';
+let tokenClient;
 
 // --- Cryptographic Helpers (PBKDF2-HMAC-SHA256) ---
 async function hashPassword(password, saltBytes = null) {
@@ -58,6 +64,9 @@ async function initializeMasterPassword(password) {
     const result = await hashPassword(password);
     localStorage.setItem(STORAGE_KEY_SALT, JSON.stringify(result.salt));
     localStorage.setItem(STORAGE_KEY_HASH, JSON.stringify(result.hash));
+    
+    // Automatically backup to Google Drive if connected
+    await pushDataToGoogleDrive();
 }
 
 function hasStoredPassword() {
@@ -79,9 +88,118 @@ function loadTrackerData() {
 function saveTrackerData(data) {
     try {
         localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(data));
+        
+        // Automatically push updated data to Google Drive in the background
+        pushDataToGoogleDrive();
         return true;
     } catch (e) {
         return false;
+    }
+}
+
+// --- Google Drive Sync Integration ---
+function initGoogleAuth(callback) {
+    if (typeof google === 'undefined') return;
+    
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: async (resp) => {
+            if (resp.error !== undefined) {
+                console.error("Google Auth Error", resp);
+                return;
+            }
+            sessionStorage.setItem("g_access_token", resp.access_token);
+            if (callback) callback(resp.access_token);
+        }
+    });
+}
+
+function handleGoogleAuthClick() {
+    initGoogleAuth(async (token) => {
+        alert("Connected to Google Drive! Pulling your encrypted backup...");
+        await pullDataFromGoogleDrive();
+        window.location.reload();
+    });
+    
+    if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+        initGoogleAuth(async (token) => {
+            await pullDataFromGoogleDrive();
+            window.location.reload();
+        });
+    }
+}
+
+// Package local storage credentials + data into a single backup file
+async function pushDataToGoogleDrive() {
+    const accessToken = sessionStorage.getItem("g_access_token");
+    if (!accessToken) return;
+
+    const backupBundle = {
+        salt: localStorage.getItem(STORAGE_KEY_SALT),
+        hash: localStorage.getItem(STORAGE_KEY_HASH),
+        data: localStorage.getItem(STORAGE_KEY_DATA)
+    };
+
+    try {
+        // Search if backup file already exists in AppFolder
+        const searchRes = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27finance_tracker_backup.json%27', {
+            headers: { 'Authorization': 'Bearer ' + accessToken }
+        });
+        const searchJson = await searchRes.json();
+        const fileId = searchJson.files && searchJson.files.length > 0 ? searchJson.files[0].id : null;
+
+        const metadata = {
+            name: 'finance_tracker_backup.json',
+            parents: fileId ? undefined : ['appDataFolder']
+        };
+
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', new Blob([JSON.stringify(backupBundle)], { type: 'application/json' }));
+
+        const method = fileId ? 'PATCH' : 'POST';
+        const url = fileId 
+            ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+            : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+
+        await fetch(url, {
+            method: method,
+            headers: { 'Authorization': 'Bearer ' + accessToken },
+            body: form
+        });
+    } catch (e) {
+        console.error("Google Drive push failed", e);
+    }
+}
+
+async function pullDataFromGoogleDrive() {
+    const accessToken = sessionStorage.getItem("g_access_token");
+    if (!accessToken) return;
+
+    try {
+        const searchRes = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27finance_tracker_backup.json%27', {
+            headers: { 'Authorization': 'Bearer ' + accessToken }
+        });
+        const searchJson = await searchRes.json();
+        
+        if (searchJson.files && searchJson.files.length > 0) {
+            const fileId = searchJson.files[0].id;
+            const fileRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?alt=media`, {
+                headers: { 'Authorization': 'Bearer ' + accessToken }
+            });
+            const backupText = await fileRes.text();
+            const backupBundle = JSON.parse(backupText);
+
+            // Restore into local storage on the new device
+            if (backupBundle.salt) localStorage.setItem(STORAGE_KEY_SALT, backupBundle.salt);
+            if (backupBundle.hash) localStorage.setItem(STORAGE_KEY_HASH, backupBundle.hash);
+            if (backupBundle.data) localStorage.setItem(STORAGE_KEY_DATA, backupBundle.data);
+        }
+    } catch (e) {
+        console.error("Google Drive pull failed", e);
     }
 }
 

@@ -5,11 +5,18 @@
     <title>Finance Tracker - Dashboard</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="cute.PNG" type="image/png">
+    <!-- Load Google Identity Services Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="master-frame" style="max-width: 500px; text-align: center;">
         <h2>Finance Tracker</h2>
-        <p style="color: #666; margin-bottom: 25px;">Where you track your savings</p>
+        <p style="color: #666; margin-bottom: 20px;">Where you track your savings</p>
+
+        <!-- Cloud Sync Status Banner -->
+        <div id="syncStatus" style="margin-bottom: 15px; font-size: 13px; color: #555; background: #e9ecef; padding: 8px; border-radius: 4px;">
+            Google Drive Sync: <span id="syncStateText" style="font-weight: bold; color: #dc3545;">Disconnected</span>
+        </div>
 
         <div style="display: flex; flex-direction: column; gap: 12px;">
             <button onclick="location.href='create_plan.html'" style="background-color: #28a745;">1. Create Plan</button>
@@ -17,14 +24,29 @@
             <button onclick="location.href='track_record.html'" style="background-color: #e0a800; color: #fff;">3. Track Record</button>
             <button onclick="location.href='total_amount.html'" style="background-color: #6f42c1;">4. Total Amount Recorded</button>
             <button onclick="location.href='remove_record.html'" style="background-color: #dc3545;">5. Remove Record</button>
+            
+            <!-- Google Drive Connect / Sync Button -->
+            <button id="googleAuthBtn" onclick="handleGoogleAuthClick()" style="background-color: #4285F4;">Connect Google Drive</button>
+            
             <button onclick="logoutSession()" style="background-color: #6c757d;">6. Logout</button>
         </div>
     </div>
 
     <script src="app.js"></script>
     <script>
+        // Update UI state if already connected to Google Drive in this session
+        window.addEventListener("DOMContentLoaded", () => {
+            if (sessionStorage.getItem("g_access_token")) {
+                const stateText = document.getElementById("syncStateText");
+                stateText.textContent = "Connected & Synced";
+                stateText.style.color = "#28a745";
+                document.getElementById("googleAuthBtn").textContent = "Sync Backup Now";
+            }
+        });
+
         function logoutSession() {
             sessionStorage.removeItem("finance_authenticated");
+            sessionStorage.removeItem("g_access_token");
             window.location.href = "index.html";
         }
     </script>
