@@ -94,3 +94,38 @@ button:hover {
 .nav-links a:hover {
     text-decoration: underline;
 }
+
+/* Responsive Mobile Optimization (Preserves Desktop Layout) */
+@media screen and (max-width: 600px) {
+    body {
+        padding: 10px;
+        align-items: flex-start;
+    }
+
+    .master-frame {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 20px 15px !important;
+        box-shadow: none !important;
+        border-radius: 6px;
+    }
+
+    h2 {
+        font-size: 20px;
+    }
+
+    input, select, button {
+        padding: 14px 10px !important;
+        font-size: 16px !important; /* Prevents auto-zoom on mobile safari/chrome */
+    }
+
+    button {
+        margin-top: 5px;
+    }
+
+    .nav-links a {
+        display: inline-block;
+        padding: 10px 0;
+        font-size: 15px;
+    }
+}
