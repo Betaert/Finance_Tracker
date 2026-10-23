@@ -33,23 +33,37 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
-    <script>
-        // Update UI state if already connected to Google Drive in this session
-        window.addEventListener("DOMContentLoaded", () => {
-            if (sessionStorage.getItem("g_access_token")) {
-                const stateText = document.getElementById("syncStateText");
+<script src="app.js"></script>
+<script>
+    // Automatically pull and sync data from Google Drive on dashboard load if authenticated
+    window.addEventListener("DOMContentLoaded", async () => {
+        const token = getStoredToken();
+        if (token) {
+            const stateText = document.getElementById("syncStateText");
+            stateText.textContent = "Syncing with Drive...";
+            stateText.style.color = "#007bff";
+            
+            const success = await pullDataFromGoogleDrive();
+            if (success) {
                 stateText.textContent = "Connected & Synced";
                 stateText.style.color = "#28a745";
                 document.getElementById("googleAuthBtn").textContent = "Sync Backup Now";
+                // Reload page widgets with newly pulled data if needed
+            } else {
+                stateText.textContent = "Connected (No remote data found)";
+                stateText.style.color = "#ffc107";
             }
-        });
-
-        function logoutSession() {
-            sessionStorage.removeItem("finance_authenticated");
-            sessionStorage.removeItem("g_access_token");
-            window.location.href = "index.html";
         }
-    </script>
+    });
+
+    function logoutSession() {
+        sessionStorage.removeItem("finance_authenticated");
+        localStorage.removeItem("g_access_token");
+        sessionStorage.removeItem("g_access_token");
+        window.location.href = "index.html";
+    }
+</script>
+
+    
 </body>
 </html>
