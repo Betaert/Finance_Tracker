@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finance Tracker - Security</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="cute.PNG" type="image/png">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div class="master-frame">
@@ -26,6 +27,10 @@
 
             <button type="submit" id="submitBtn">Proceed</button>
         </form>
+
+        <div style="margin-top: 15px; text-align: center;">
+            <button type="button" id="restoreBtn" onclick="handleGoogleAuthClick()" style="background-color: #4285F4; margin-top: 10px;">Restore Data from Google Drive</button>
+        </div>
     </div>
 
     <script src="app.js"></script>
