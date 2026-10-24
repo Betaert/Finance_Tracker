@@ -36,8 +36,7 @@
             <a href="dashboard.html">← Back to Dashboard</a>
         </div>
     </div>
-
-    <script src="app.js"></script>
+<script src="app.js"></script>
     <script>
         const form = document.getElementById("createPlanForm");
         const alertBox = document.getElementById("alertBox");
@@ -48,7 +47,7 @@
             alertBox.style.display = "block";
         }
 
-        form.addEventListener("submit", function(e) {
+        form.addEventListener("submit", async function(e) {
             e.preventDefault();
             alertBox.style.display = "none";
 
@@ -75,26 +74,36 @@
                 return;
             }
 
-            // 4. Load Data, Add Plan, and Save to LocalStorage
-            const data = loadTrackerData();
-            if (!data.plans) {
-                data.plans = {};
-            }
+            // 4. Perform Atomic Read-Modify-Write directly with Google Drive
+            submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Syncing with Cloud...";
 
-            data.plans[planName] = {
-                name: planName,
-                purpose: purpose,
-                amount: amount,
-                last_date: getFormattedDate()
-            };
+            try {
+                await mutateAndSaveTrackerData((currentData) => {
+                    if (!currentData.plans) {
+                        currentData.plans = {};
+                    }
 
-            if (saveTrackerData(data)) {
-                showAlert(`Plan '${planName}' has been saved successfully!`, "success");
+                    currentData.plans[planName] = {
+                        name: planName,
+                        purpose: purpose,
+                        amount: amount,
+                        last_date: getFormattedDate()
+                    };
+
+                    return currentData;
+                });
+
+                showAlert(`Plan '${planName}' has been saved and updated in your Google Drive file!`, "success");
                 setTimeout(() => {
                     window.location.href = "dashboard.html";
                 }, 1500);
-            } else {
-                showAlert("Error: Failed to save data to local storage.", "error");
+            } catch (err) {
+                console.error(err);
+                showAlert("Error: Failed to sync data with Google Drive.", "error");
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Save Plan";
             }
         });
     </script>
