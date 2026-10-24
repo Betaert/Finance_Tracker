@@ -3,32 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finance Tracker - Remove Record</title>
+    <title>Finance Tracker - Record Amount</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="cute.PNG" type="image/png">
 </head>
 <body>
     <div class="master-frame">
-        <h2>Remove a Plan</h2>
+        <h2>Record Amount</h2>
         
         <div id="alertBox" class="alert" style="display: none;"></div>
 
-        <form id="removeForm" style="display: none;">
+        <form id="recordForm" style="display: none;">
             <div class="form-group">
-                <label for="removeSelect">Select a plan to remove:</label>
-                <select id="removeSelect" required></select>
+                <label for="planSelect">Select Plan:</label>
+                <select id="planSelect" required></select>
             </div>
             
             <div class="form-group">
-                <label for="confirmInput">⚠️ Type <strong>DELETE</strong> to confirm deletion:</label>
-                <input type="text" id="confirmInput" placeholder="Type DELETE here" required>
+                <label for="addAmount">Enter Amount to Add (GHC):</label>
+                <input type="number" id="addAmount" step="0.01" min="0" placeholder="0.00" required>
             </div>
 
-            <button type="submit" id="submitBtn" style="background-color: #dc3545;">Delete Plan</button>
+            <button type="submit" id="submitBtn">Update Plan</button>
         </form>
 
         <div id="noPlansMsg" style="display: none; text-align: center;">
-            <p style="color: #721c24; font-weight: bold;">No plans found.</p>
+            <p style="color: #721c24; font-weight: bold;">No plans found. Please create a plan first.</p>
         </div>
 
         <div class="nav-links" style="margin-top: 20px;">
@@ -39,10 +39,9 @@
     <script src="app.js"></script>
     <script>
         const alertBox = document.getElementById("alertBox");
-        const removeForm = document.getElementById("removeForm");
+        const recordForm = document.getElementById("recordForm");
         const noPlansMsg = document.getElementById("noPlansMsg");
-        const removeSelect = document.getElementById("removeSelect");
-        const confirmInput = document.getElementById("confirmInput");
+        const planSelect = document.getElementById("planSelect");
 
         function showAlert(message, type = "error") {
             alertBox.textContent = message;
@@ -56,52 +55,54 @@
 
         if (planNames.length === 0) {
             noPlansMsg.style.display = "block";
-            removeForm.style.display = "none";
+            recordForm.style.display = "none";
         } else {
             noPlansMsg.style.display = "none";
-            removeForm.style.display = "block";
+            recordForm.style.display = "block";
 
             planNames.forEach(name => {
                 const option = document.createElement("option");
                 option.value = name;
                 option.textContent = name;
-                removeSelect.appendChild(option);
+                planSelect.appendChild(option);
             });
         }
 
-        removeForm.addEventListener("submit", async function(e) {
+        recordForm.addEventListener("submit", async function(e) {
             e.preventDefault();
             alertBox.style.display = "none";
 
-            const selectedPlan = removeSelect.value;
-            const confirmationText = confirmInput.value.trim();
+            const selectedPlan = planSelect.value;
+            const addAmountStr = document.getElementById("addAmount").value.trim();
 
-            if (confirmationText !== "DELETE") {
-                showAlert("Deletion cancelled. You must type 'DELETE' in uppercase to confirm.", "error");
+            const addAmount = parseFloat(addAmountStr);
+            if (isNaN(addAmount) || addAmount < 0) {
+                showAlert("Invalid number: Amount cannot be negative.", "error");
                 return;
             }
 
             const submitBtn = document.getElementById("submitBtn");
             submitBtn.disabled = true;
-            submitBtn.textContent = "Deleting from Google Drive...";
+            submitBtn.textContent = "Updating Google Drive...";
 
             try {
                 await mutateAndSaveTrackerData((currentData) => {
                     if (currentData.plans && currentData.plans[selectedPlan]) {
-                        delete currentData.plans[selectedPlan];
+                        currentData.plans[selectedPlan].amount += addAmount;
+                        currentData.plans[selectedPlan].last_date = getFormattedDate();
                     }
                     return currentData;
                 });
 
-                showAlert(`Plan '${selectedPlan}' has been deleted successfully from Google Drive.`, "success");
+                showAlert(`Successfully added GHC${addAmount.toFixed(2)} to '${selectedPlan}'! Updated in Google Drive.`, "success");
                 setTimeout(() => {
                     window.location.href = "dashboard.html";
                 }, 1500);
             } catch (err) {
                 console.error(err);
-                showAlert("Failed to sync deletion with Google Drive.", "error");
+                showAlert("Failed to sync with Google Drive.", "error");
                 submitBtn.disabled = false;
-                submitBtn.textContent = "Delete Plan";
+                submitBtn.textContent = "Update Plan";
             }
         });
     </script>
