@@ -4,39 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finance Tracker - Remove Record</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="cute.PNG" type="image/png">
+    <link rel="stylesheet" href="style.css"[cite: 7]>
+    <link rel="icon" href="cute.PNG" type="image/png"[cite: 7]>
 </head>
 <body>
-    <div class="master-frame">
-        <h2>Remove a Plan</h2>
+    <div class="master-frame"[cite: 7]>
+        <h2>Remove a Plan</h2>[cite: 7]
         
-        <div id="alertBox" class="alert" style="display: none;"></div>
+        <div id="alertBox" class="alert" style="display: none;"[cite: 7]></div>
 
-        <form id="removeForm" style="display: none;">
-            <div class="form-group">
-                <label for="removeSelect">Select a plan to remove:</label>
-                <select id="removeSelect" required></select>
+        <form id="removeForm" style="display: none;"[cite: 7]>
+            <div class="form-group"[cite: 7]>
+                <label for="removeSelect">Select a plan to remove:</label>[cite: 7]
+                <select id="removeSelect" required[cite: 7]></select>
             </div>
             
-            <div class="form-group">
-                <label for="confirmInput">⚠️ Type <strong>DELETE</strong> to confirm deletion:</label>
-                <input type="text" id="confirmInput" placeholder="Type DELETE here" required>
+            <div class="form-group"[cite: 7]>
+                <label for="confirmInput">⚠️ Type <strong>DELETE</strong> to confirm deletion:</label>[cite: 7]
+                <input type="text" id="confirmInput" placeholder="Type DELETE here" required[cite: 7]>
             </div>
 
-            <button type="submit" style="background-color: #dc3545;">Delete Plan</button>
+            <button type="submit" id="submitBtn" style="background-color: #dc3545;"[cite: 7]>Delete Plan</button>
         </form>
 
-        <div id="noPlansMsg" style="display: none; text-align: center;">
-            <p style="color: #721c24; font-weight: bold;">No plans found.</p>
+        <div id="noPlansMsg" style="display: none; text-align: center;"[cite: 7]>
+            <p style="color: #721c24; font-weight: bold;"[cite: 7]>No plans found.</p>
         </div>
 
-        <div class="nav-links" style="margin-top: 20px;">
-            <a href="dashboard.html">← Back to Dashboard</a>
+        <div class="nav-links" style="margin-top: 20px;"[cite: 7]>
+            <a href="dashboard.html"[cite: 4, 7]>← Back to Dashboard</a>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js"[cite: 2, 7]></script>
     <script>
         const alertBox = document.getElementById("alertBox");
         const removeForm = document.getElementById("removeForm");
@@ -69,32 +69,40 @@
             });
         }
 
-        removeForm.addEventListener("submit", function(e) {
+        removeForm.addEventListener("submit", async function(e) {
             e.preventDefault();
             alertBox.style.display = "none";
 
             const selectedPlan = removeSelect.value;
             const confirmationText = confirmInput.value.trim();
 
-            if (!plans[selectedPlan]) {
-                showAlert("Plan not found.", "error");
+            if (confirmationText !== "DELETE") {
+                showAlert("Deletion cancelled. You must type 'DELETE' in uppercase to confirm.", "error");
                 return;
             }
 
-            if (confirmationText === "DELETE") {
-                delete plans[selectedPlan];
-                data.plans = plans;
+            const submitBtn = document.getElementById("submitBtn");
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Syncing Deletion with Cloud...";
 
-                if (saveTrackerData(data)) {
-                    showAlert(`Plan '${selectedPlan}' has been deleted successfully.`, "success");
-                    setTimeout(() => {
-                        window.location.href = "dashboard.html";
-                    }, 2000);
-                } else {
-                    showAlert("Error: Failed to update local storage.", "error");
-                }
-            } else {
-                showAlert("Deletion cancelled. You must type 'DELETE' in uppercase to confirm.", "error");
+            try {
+                // Atomic Read-Modify-Write directly updates Google Drive in real time
+                await mutateAndSaveTrackerData((currentData) => {
+                    if (currentData.plans && currentData.plans[selectedPlan]) {
+                        delete currentData.plans[selectedPlan];
+                    }
+                    return currentData;
+                });
+
+                showAlert(`Plan '${selectedPlan}' has been deleted and synced to Google Drive in real time.`, "success");
+                setTimeout(() => {
+                    window.location.href = "dashboard.html";
+                }, 1500);
+            } catch (err) {
+                console.error(err);
+                showAlert("Failed to sync deletion with Google Drive.", "error");
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Delete Plan";
             }
         });
     </script>
