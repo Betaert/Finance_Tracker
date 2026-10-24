@@ -1,4 +1,4 @@
-// app.js - Cryptographic Security & Google Drive Cloud Sync Engine
+// app.js - Cryptographic Security & Atomic Read-Modify-Write (RMW) Google Drive Engine
 
 const STORAGE_KEY_SALT = "finance_tracker_salt";
 const STORAGE_KEY_HASH = "finance_tracker_hash";
@@ -65,14 +65,15 @@ async function initializeMasterPassword(password) {
     localStorage.setItem(STORAGE_KEY_SALT, JSON.stringify(result.salt));
     localStorage.setItem(STORAGE_KEY_HASH, JSON.stringify(result.hash));
     
-    await pushDataToGoogleDrive();
+    // Create initial cloud anchor file on Google Drive
+    await commitDataToGoogleDrive(loadTrackerData());
 }
 
 function hasStoredPassword() {
     return localStorage.getItem(STORAGE_KEY_SALT) !== null;
 }
 
-// --- Data Helpers ---
+// --- Local Storage Helpers ---
 function loadTrackerData() {
     const rawData = localStorage.getItem(STORAGE_KEY_DATA);
     if (!rawData) return { plans: {} };
@@ -84,17 +85,17 @@ function loadTrackerData() {
     }
 }
 
+// Legacy save helper maintained for single-device offline fallback
 function saveTrackerData(data) {
     try {
         localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(data));
-        pushDataToGoogleDrive();
         return true;
     } catch (e) {
         return false;
     }
 }
 
-// --- Persistent Google Drive Sync Integration ---
+// --- Persistent Token Management ---
 function getStoredToken() {
     return localStorage.getItem(STORAGE_KEY_TOKEN) || sessionStorage.getItem(STORAGE_KEY_TOKEN);
 }
@@ -104,58 +105,87 @@ function setStoredToken(token) {
     sessionStorage.setItem(STORAGE_KEY_TOKEN, token);
 }
 
-function initGoogleAuth(callback) {
-    if (typeof google === 'undefined') return;
-    
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: async (resp) => {
-            if (resp.error !== undefined) {
-                console.error("Google Auth Error", resp);
-                return;
-            }
-            setStoredToken(resp.access_token);
-            if (callback) await callback(resp.access_token);
-        }
-    });
-}
-
-function handleGoogleAuthClick() {
-    initGoogleAuth(async (token) => {
-        alert("Connected to Google Drive! Syncing backup across devices...");
-        await pullDataFromGoogleDrive();
-        window.location.reload();
-    });
-    
-    if (tokenClient) {
-        tokenClient.requestAccessToken({ prompt: '' });
-    } else {
-        initGoogleAuth(async (token) => {
-            await pullDataFromGoogleDrive();
-            window.location.reload();
+// --- Google Drive Atomic Read-Modify-Write (RMW) Engine ---
+async function getRemoteFileId(accessToken) {
+    try {
+        const searchRes = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27finance_tracker_backup.json%27', {
+            headers: { 'Authorization': 'Bearer ' + accessToken }
         });
+        const searchJson = await searchRes.json();
+        return (searchJson.files && searchJson.files.length > 0) ? searchJson.files[0].id : null;
+    } catch (e) {
+        console.error("Error retrieving cloud file ID", e);
+        return null;
     }
 }
 
-// Package local storage credentials + data into Google Drive
-async function pushDataToGoogleDrive() {
+// Fetch the single master JSON file directly from Google Drive
+async function fetchRemoteData() {
+    const accessToken = getStoredToken();
+    if (!accessToken) return null;
+
+    try {
+        const fileId = await getRemoteFileId(accessToken);
+        if (!fileId) return null;
+
+        const fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: { 'Authorization': 'Bearer ' + accessToken }
+        });
+        const backupBundle = await fileRes.json();
+
+        // Restore remote security credentials & data to local device browser cache
+        if (backupBundle.salt) localStorage.setItem(STORAGE_KEY_SALT, backupBundle.salt);
+        if (backupBundle.hash) localStorage.setItem(STORAGE_KEY_HASH, backupBundle.hash);
+        if (backupBundle.data) localStorage.setItem(STORAGE_KEY_DATA, backupBundle.data);
+
+        return backupBundle;
+    } catch (e) {
+        console.error("Failed to fetch remote data from Google Drive", e);
+        return null;
+    }
+}
+
+// Atomic Mutation Engine: Fetches remote file -> Merges local change -> Writes directly back
+async function mutateAndSaveTrackerData(mutatorFunction) {
+    const accessToken = getStoredToken();
+    let currentData = loadTrackerData();
+
+    // If online & connected to Drive, fetch latest cloud state first to prevent overwriting
+    if (accessToken) {
+        const remoteBundle = await fetchRemoteData();
+        if (remoteBundle && remoteBundle.data) {
+            try {
+                currentData = JSON.parse(remoteBundle.data);
+            } catch (e) {}
+        }
+    }
+
+    // Apply the specific modification (add plan, record amount, delete plan)
+    currentData = mutatorFunction(currentData);
+
+    // Save locally
+    localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(currentData));
+
+    // Write merged state directly back to the single Google Drive file
+    if (accessToken) {
+        await commitDataToGoogleDrive(currentData);
+    }
+    return true;
+}
+
+// Write JSON payload directly to the persistent Google Drive file
+async function commitDataToGoogleDrive(currentData) {
     const accessToken = getStoredToken();
     if (!accessToken) return;
 
     const backupBundle = {
         salt: localStorage.getItem(STORAGE_KEY_SALT),
         hash: localStorage.getItem(STORAGE_KEY_HASH),
-        data: localStorage.getItem(STORAGE_KEY_DATA)
+        data: JSON.stringify(currentData)
     };
 
     try {
-        const searchRes = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27finance_tracker_backup.json%27', {
-            headers: { 'Authorization': 'Bearer ' + accessToken }
-        });
-        const searchJson = await searchRes.json();
-        const fileId = searchJson.files && searchJson.files.length > 0 ? searchJson.files[0].id : null;
-
+        const fileId = await getRemoteFileId(accessToken);
         const metadata = {
             name: 'finance_tracker_backup.json',
             parents: fileId ? undefined : ['appDataFolder']
@@ -176,39 +206,46 @@ async function pushDataToGoogleDrive() {
             body: form
         });
     } catch (e) {
-        console.error("Google Drive push failed", e);
+        console.error("Direct cloud commit failed", e);
     }
 }
 
-async function pullDataFromGoogleDrive() {
-    const accessToken = getStoredToken();
-    if (!accessToken) return;
-
-    try {
-        const searchRes = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27finance_tracker_backup.json%27', {
-            headers: { 'Authorization': 'Bearer ' + accessToken }
-        });
-        const searchJson = await searchRes.json();
-        
-        if (searchJson.files && searchJson.files.length > 0) {
-            const fileId = searchJson.files[0].id;
-            const fileRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?alt=media`, {
-                headers: { 'Authorization': 'Bearer ' + accessToken }
-            });
-            const backupText = await fileRes.text();
-            const backupBundle = JSON.parse(backupText);
-
-            if (backupBundle.salt) localStorage.setItem(STORAGE_KEY_SALT, backupBundle.salt);
-            if (backupBundle.hash) localStorage.setItem(STORAGE_KEY_HASH, backupBundle.hash);
-            if (backupBundle.data) localStorage.setItem(STORAGE_KEY_DATA, backupBundle.data);
-            return true;
+// --- Google Authentication Triggers ---
+function initGoogleAuth(callback) {
+    if (typeof google === 'undefined') return;
+    
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: async (resp) => {
+            if (resp.error !== undefined) {
+                console.error("Google Auth Error", resp);
+                return;
+            }
+            setStoredToken(resp.access_token);
+            if (callback) await callback(resp.access_token);
         }
-    } catch (e) {
-        console.error("Google Drive pull failed", e);
-    }
-    return false;
+    });
 }
 
+function handleGoogleAuthClick() {
+    initGoogleAuth(async (token) => {
+        alert("Connected to Google Drive! Synchronizing cloud data...");
+        await fetchRemoteData();
+        window.location.reload();
+    });
+    
+    if (tokenClient) {
+        tokenClient.requestAccessToken({ prompt: '' });
+    } else {
+        initGoogleAuth(async (token) => {
+            await fetchRemoteData();
+            window.location.reload();
+        });
+    }
+}
+
+// --- Date & Session Utilities ---
 function getFormattedDate() {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
