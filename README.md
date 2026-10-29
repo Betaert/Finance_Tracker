@@ -20,6 +20,6 @@ Finance Tracker allows users to effortlessly create savings plans, record moneta
 
 -Works entirely offline! Once you get an active internet connection, you just synchronize it with your google account you used to log in and it stores in your Google Drive (but hidden)
 
--Utilizes SHA-256 Password Encryption Algorithm to ultimately lock data and reveal it to you only when the password matches.
+-Utilizes SHA-256 Password Encryption Algorithm to ultimately locks your data and reveal it to you only when the password matches.
 
 **TRACK YOUR EXPENSES AND MAKE NECCESSARY DECISIONS FOR A WEALTHIER FUTURE!**
